@@ -1,3 +1,3 @@
-module github.com/bootdotdev/learn-pub-sub-starter
+module github.com/hyuko21/pubsub-golang
 
-go 1.22.1
+go 1.25.1
