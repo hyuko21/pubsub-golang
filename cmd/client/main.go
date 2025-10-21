@@ -28,6 +28,7 @@ func main() {
 
 	state := gamelogic.NewGameState(username)
 	subscribeToPause(conn, state, username)
+	subscribeToArmyMoves(conn, state, username)
 gameloop:
 	for {
 		input := gamelogic.GetInput()
@@ -72,10 +73,27 @@ func subscribeToPause(conn *amqp.Connection, gs *gamelogic.GameState, username s
 	}
 }
 
+func subscribeToArmyMoves(conn *amqp.Connection, gs *gamelogic.GameState, username string) {
+	queueName := fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, username)
+	routingKey := fmt.Sprintf("%s.*", routing.ArmyMovesPrefix)
+	err := pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, queueName, routingKey, pubsub.TransientQueue, handlerMove(gs))
+	if err != nil {
+		log.Fatalf("Error subscribing to queue: %s", err)
+	}
+}
+
 func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
 	return func(ps routing.PlayingState) {
 		defer fmt.Print("> ")
 
 		gs.HandlePause(ps)
+	}
+}
+
+func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) {
+	return func(move gamelogic.ArmyMove) {
+		defer fmt.Print("> ")
+
+		gs.HandleMove(move)
 	}
 }
