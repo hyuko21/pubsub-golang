@@ -27,11 +27,7 @@ func main() {
 	}
 
 	state := gamelogic.NewGameState(username)
-	queueName := fmt.Sprintf("%s.%s", routing.PauseKey, username)
-	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.TransientQueue, handlerPause(state))
-	if err != nil {
-		log.Fatalf("Error subscribing to queue: %s", err)
-	}
+	subscribeToPause(conn, state, username)
 gameloop:
 	for {
 		input := gamelogic.GetInput()
@@ -65,6 +61,14 @@ gameloop:
 			log.Printf("unknown command: '%s'\n", input[0])
 			continue
 		}
+	}
+}
+
+func subscribeToPause(conn *amqp.Connection, gs *gamelogic.GameState, username string) {
+	queueName := fmt.Sprintf("%s.%s", routing.PauseKey, username)
+	err := pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.TransientQueue, handlerPause(gs))
+	if err != nil {
+		log.Fatalf("Error subscribing to queue: %s", err)
 	}
 }
 
