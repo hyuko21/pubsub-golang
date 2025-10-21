@@ -43,12 +43,13 @@ gameloop:
 				continue
 			}
 		case "move":
-			_, err := state.CommandMove(input)
+			move, err := state.CommandMove(input)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
 			log.Println("Army in motion...")
+			publishMove(conn, username, move)
 		case "spam":
 			log.Println("Spamming not allowed yet!")
 		case "status":
@@ -63,6 +64,14 @@ gameloop:
 			continue
 		}
 	}
+}
+
+func getChannel(conn *amqp.Connection) *amqp.Channel {
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Fatalf("Error opening connection channel: %s", err)
+	}
+	return ch
 }
 
 func subscribeToPause(conn *amqp.Connection, gs *gamelogic.GameState, username string) {
@@ -80,6 +89,15 @@ func subscribeToArmyMoves(conn *amqp.Connection, gs *gamelogic.GameState, userna
 	if err != nil {
 		log.Fatalf("Error subscribing to queue: %s", err)
 	}
+}
+
+func publishMove(conn *amqp.Connection, username string, move gamelogic.ArmyMove) {
+	routingKey := fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, username)
+	err := pubsub.PublishJSON(getChannel(conn), routing.ExchangePerilTopic, routingKey, move)
+	if err != nil {
+		log.Fatalf("Error publishing to queue: %s", err)
+	}
+	log.Println("Published move event to queue")
 }
 
 func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
