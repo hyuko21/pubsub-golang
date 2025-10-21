@@ -25,14 +25,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error welcoming new user: %s", err)
 	}
-	queueName := fmt.Sprintf("%s.%s", routing.PauseKey, username)
-	_, q, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.TransientQueue)
-	if err != nil {
-		log.Fatalf("Error declaring queue: %s", err)
-	}
-	log.Printf("Created new queue for user: '%s'\n", q.Name)
 
 	state := gamelogic.NewGameState(username)
+	queueName := fmt.Sprintf("%s.%s", routing.PauseKey, username)
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.TransientQueue, handlerPause(state))
+	if err != nil {
+		log.Fatalf("Error subscribing to queue: %s", err)
+	}
 gameloop:
 	for {
 		input := gamelogic.GetInput()
@@ -50,6 +49,7 @@ gameloop:
 			_, err := state.CommandMove(input)
 			if err != nil {
 				log.Println(err)
+				continue
 			}
 			log.Println("Army in motion...")
 		case "spam":
@@ -65,5 +65,13 @@ gameloop:
 			log.Printf("unknown command: '%s'\n", input[0])
 			continue
 		}
+	}
+}
+
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
+	return func(ps routing.PlayingState) {
+		defer fmt.Print("> ")
+
+		gs.HandlePause(ps)
 	}
 }
