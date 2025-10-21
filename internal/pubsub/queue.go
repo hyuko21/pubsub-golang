@@ -25,7 +25,9 @@ func DeclareAndBind(
 		return nil, amqp.Queue{}, fmt.Errorf("failed to create channel: %s", err)
 	}
 	isDurable, isAutoDelete, isExclusive := getQueueOptionsForType(queueType)
-	q, err := ch.QueueDeclare(queueName, isDurable, isAutoDelete, isExclusive, false, nil)
+	q, err := ch.QueueDeclare(queueName, isDurable, isAutoDelete, isExclusive, false, amqp.Table{
+		"x-dead-letter-exchange": "peril_dlx",
+	})
 	if err != nil {
 		return nil, q, fmt.Errorf("failed to create queue: %s", err)
 	}
