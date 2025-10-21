@@ -2,10 +2,8 @@ package main
 
 import (
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 
+	"github.com/hyuko21/pubsub-golang/internal/gamelogic"
 	"github.com/hyuko21/pubsub-golang/internal/pubsub"
 	"github.com/hyuko21/pubsub-golang/internal/routing"
 
@@ -22,20 +20,40 @@ func main() {
 	defer conn.Close()
 	log.Println("Connected to Rabbitmq server")
 
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatalf("Error opening connection channel: %s", err)
+	gamelogic.PrintServerHelp()
+gameloop:
+	for {
+		ch, err := conn.Channel()
+		if err != nil {
+			log.Fatalf("Error opening connection channel: %s", err)
+		}
+		input := gamelogic.GetInput()
+		if len(input) == 0 {
+			continue
+		}
+		switch input[0] {
+		case "pause":
+			log.Println("Sending pause message...")
+			err = pubsub.PublishJSON(ch, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{
+				IsPaused: true,
+			})
+		case "resume":
+			log.Println("Sending resume message...")
+			err = pubsub.PublishJSON(ch, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{
+				IsPaused: false,
+			})
+		case "quit":
+			log.Println("Ending game...")
+			break gameloop
+		case "help":
+			gamelogic.PrintServerHelp()
+		default:
+			log.Printf("unkown command: '%s'\n", input[0])
+			continue
+		}
+		if err != nil {
+			log.Fatalf("Error publishing message with channel: %s", err)
+		}
 	}
-	err = pubsub.PublishJSON(ch, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{
-		IsPaused: true,
-	})
-	if err != nil {
-		log.Fatalf("Error publishing message with channel: %s", err)
-	}
-	log.Printf("Message published to exchange: '%s' and key: '%s'", routing.ExchangePerilDirect, routing.PauseKey)
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Server gracefully stopped")
+	log.Println("Game is done.")
 }
