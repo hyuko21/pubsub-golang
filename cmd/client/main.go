@@ -3,9 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/hyuko21/pubsub-golang/internal/gamelogic"
 	"github.com/hyuko21/pubsub-golang/internal/pubsub"
@@ -33,10 +30,40 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error declaring queue: %s", err)
 	}
-	log.Printf("Created new queue for user: '%s' %v\n", q.Name, q)
+	log.Printf("Created new queue for user: '%s'\n", q.Name)
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Client gracefully disconnected")
+	state := gamelogic.NewGameState(username)
+gameloop:
+	for {
+		input := gamelogic.GetInput()
+		if len(input) == 0 {
+			continue
+		}
+		switch input[0] {
+		case "spawn":
+			err := state.CommandSpawn(input)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+		case "move":
+			_, err := state.CommandMove(input)
+			if err != nil {
+				log.Println(err)
+			}
+			log.Println("Army in motion...")
+		case "spam":
+			log.Println("Spamming not allowed yet!")
+		case "status":
+			state.CommandStatus()
+		case "quit":
+			gamelogic.PrintQuit()
+		case "help":
+			gamelogic.PrintClientHelp()
+			break gameloop
+		default:
+			log.Printf("unknown command: '%s'\n", input[0])
+			continue
+		}
+	}
 }
