@@ -20,6 +20,11 @@ func main() {
 	defer conn.Close()
 	log.Println("Connected to Rabbitmq server")
 
+	_, _, err = pubsub.DeclareAndBind(conn, routing.ExchangePerilTopic, routing.GameLogSlug, routing.GameLogSlug+".*", pubsub.DurableQueue)
+	if err != nil {
+		log.Fatalf("Error declaring queue: %s", err)
+	}
+
 	gamelogic.PrintServerHelp()
 gameloop:
 	for {
