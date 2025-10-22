@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/hyuko21/pubsub-golang/internal/gamelogic"
 	"github.com/hyuko21/pubsub-golang/internal/pubsub"
@@ -109,9 +110,14 @@ func publishMove(conn *amqp.Connection, username string, move gamelogic.ArmyMove
 	log.Println("Published move event to queue")
 }
 
-func publishGameLog(conn *amqp.Connection, username, gLog string) error {
+func publishGameLog(conn *amqp.Connection, username, gamelogMsg string) error {
 	routingKey := fmt.Sprintf("%s.%s", routing.GameLogSlug, username)
-	if err := pubsub.PublishGob(getChannel(conn), routing.ExchangePerilTopic, routingKey, gLog); err != nil {
+	gamelog := routing.GameLog{
+		CurrentTime: time.Now(),
+		Message:     gamelogMsg,
+		Username:    username,
+	}
+	if err := pubsub.PublishGob(getChannel(conn), routing.ExchangePerilTopic, routingKey, gamelog); err != nil {
 		return err
 	}
 	return nil
@@ -158,14 +164,14 @@ func handlerWarRecognitions(gs *gamelogic.GameState, conn *amqp.Connection) func
 		case gamelogic.WarOutcomeNoUnits:
 			return pubsub.NackDiscard
 		case gamelogic.WarOutcomeOpponentWon, gamelogic.WarOutcomeYouWon:
-			gLog := fmt.Sprintf("%s won a war against %s", winner, loser)
-			if err := publishGameLog(conn, rw.Attacker.Username, gLog); err != nil {
+			gamelogMsg := fmt.Sprintf("%s won a war against %s", winner, loser)
+			if err := publishGameLog(conn, rw.Attacker.Username, gamelogMsg); err != nil {
 				return pubsub.NackRequeue
 			}
 			return pubsub.Ack
 		case gamelogic.WarOutcomeDraw:
-			gLog := fmt.Sprintf("A war between %s and %s resulted in a draw", winner, loser)
-			if err := publishGameLog(conn, rw.Attacker.Username, gLog); err != nil {
+			gamelogMsg := fmt.Sprintf("A war between %s and %s resulted in a draw", winner, loser)
+			if err := publishGameLog(conn, rw.Attacker.Username, gamelogMsg); err != nil {
 				return pubsub.NackRequeue
 			}
 			return pubsub.Ack

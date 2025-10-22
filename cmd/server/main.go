@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/hyuko21/pubsub-golang/internal/gamelogic"
@@ -20,10 +21,7 @@ func main() {
 	defer conn.Close()
 	log.Println("Connected to Rabbitmq server")
 
-	_, _, err = pubsub.DeclareAndBind(conn, routing.ExchangePerilTopic, routing.GameLogSlug, routing.GameLogSlug+".*", pubsub.DurableQueue)
-	if err != nil {
-		log.Fatalf("Error declaring queue: %s", err)
-	}
+	subscribeToGameLogs(conn)
 
 	gamelogic.PrintServerHelp()
 gameloop:
@@ -61,4 +59,19 @@ gameloop:
 		}
 	}
 	log.Println("Game is done.")
+}
+
+func subscribeToGameLogs(conn *amqp.Connection) {
+	routingKey := fmt.Sprintf("%s.*", routing.GameLogSlug)
+	if err := pubsub.SubscribeGob(conn, routing.ExchangePerilTopic, routing.GameLogSlug, routingKey, pubsub.DurableQueue, handlerGameLogs); err != nil {
+		log.Fatalf("Error subscribing to queue: %s", err)
+	}
+}
+
+func handlerGameLogs(gamelog routing.GameLog) pubsub.AckType {
+	defer fmt.Print("> ")
+	if err := gamelogic.WriteLog(gamelog); err != nil {
+		return pubsub.NackRequeue
+	}
+	return pubsub.Ack
 }
