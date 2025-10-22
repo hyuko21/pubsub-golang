@@ -57,13 +57,13 @@ gameloop:
 			state.CommandStatus()
 		case "quit":
 			gamelogic.PrintQuit()
+			break gameloop
 		case "help":
 			gamelogic.PrintClientHelp()
-			break gameloop
 		default:
 			log.Printf("unknown command: '%s'\n", input[0])
-			continue
 		}
+		continue
 	}
 }
 
