@@ -69,6 +69,10 @@ func subscribe[T any](
 	if err != nil {
 		return fmt.Errorf("error declaring queue: %s", err)
 	}
+	err = ch.Qos(10, 0, false)
+	if err != nil {
+		return fmt.Errorf("error setting up prefetch config: %s", err)
+	}
 	deliveryCh, err := ch.Consume(q.Name, "", false, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("error consuming queue: %s", err)
