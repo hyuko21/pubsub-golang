@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/hyuko21/pubsub-golang/internal/gamelogic"
@@ -53,7 +54,18 @@ gameloop:
 			log.Println("Army in motion...")
 			publishMove(conn, username, move)
 		case "spam":
-			log.Println("Spamming not allowed yet!")
+			if len(input) < 2 {
+				log.Println("Invalid number of args to spam command")
+				continue
+			}
+			spamAmount, err := strconv.Atoi(input[1])
+			if err != nil {
+				log.Println("Invalid format for spam value, shoulde be a number")
+				continue
+			}
+			for range spamAmount {
+				_ = publishGameLog(conn, username, gamelogic.GetMaliciousLog())
+			}
 		case "status":
 			state.CommandStatus()
 		case "quit":
